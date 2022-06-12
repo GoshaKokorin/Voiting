@@ -1,5 +1,6 @@
 {
-  "name": "hardhat-project",
+  "name": "voting",
+  "version": "1.0.0",
   "scripts": {
     "test": "npx hardhat coverage",
     "recompile": "npx hardhat clean && npx hardhat compile"
