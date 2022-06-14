@@ -1,0 +1,5 @@
+require("./addVoting")
+require("./payForVoting")
+require("./viewVoting")
+require("./vote")
+require("./withdraw")

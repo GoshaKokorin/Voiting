@@ -1,19 +1,27 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("Greeter", function () {
-  it("Should return the new greeting once it's changed", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, world!");
-    await greeter.deployed();
+describe("Voting", function () {
+  let owner, candidate1, candidate2, candidate3, voter1, voter2, voter3;
 
-    expect(await greeter.greet()).to.equal("Hello, world!");
+  beforeEach(async function () {
+    [owner, candidate1, candidate2, candidate3, voter1, voter2, voter3] = await ethers.getSigners()
 
-    const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
+    const Voting = await ethers.getContractFactory("Voting", owner)
+    const voting = await Voting.deploy()
+    await voting.deployed()
+  })
 
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
+  // it("Sets owner", async function() {
+  //   const currentOwner = await voting.owner()
+  //   expect(currentOwner).to.eq(owner.address)
+  // })
 
-    expect(await greeter.greet()).to.equal("Hola, mundo!");
-  });
+  // describe("addVoting", function () {
+  //   it("creates voting correctly", async function() {
+  //     await Voting.addVoting([candidate1.address, candidate2.address, candidate3.address]);
+  //   })
+  // })
+
+
 });

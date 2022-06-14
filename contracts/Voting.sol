@@ -2,20 +2,20 @@
 pragma solidity ^0.8.0;
 
 contract VotingContract {
-    // TODO: убрать костыль с votes1
-    uint[] votes1;
-
     address owner;
-    uint comission;
+    uint transferFee;
     uint constant DURATION = 3 days; 
-    mapping(address=>uint) participants;
+    uint constant COMISSION = 0.01 ether;
+
+    mapping(address=>uint) public participants;
 
     struct Voting {
         address[] candidates;
-        uint[] amountVotes;
-        address[] whoVoted;
+        mapping (uint=>uint) amountVotes;
+        mapping (address=>bool) whoVoted;
+        uint maxVotes;
+        uint winnerId;
         uint amountMoney;
-        uint startVotingTime;
         uint endVotingTime;
         bool ended;
     }
@@ -27,8 +27,8 @@ contract VotingContract {
     }
 
     modifier onlyOwner() { 
-    require(msg.sender == owner, "Sorry, u not owner."); 
-    _;
+        require(msg.sender == owner, "Sorry, u not owner."); 
+        _;
     }
 
     function payForVoting() external payable {
@@ -37,78 +37,67 @@ contract VotingContract {
     }
 
     function addVoting(address[] memory _candidates) external onlyOwner {
-      // TODO: убрать костыль с votes1
-      for (uint i = 0; i < _candidates.length; i++)
-        {
-            votes1.push(0);
-        }
-
-      Voting memory newVoting = Voting({
-        candidates: _candidates,
-        amountVotes: votes1,
-        whoVoted: _candidates,
-        amountMoney: 0,
-        startVotingTime: block.timestamp,
-        endVotingTime: block.timestamp + DURATION,
-        ended: false
-      });
-
-      votings.push(newVoting);
+        Voting storage newVoting = votings.push();
+        newVoting.candidates = _candidates;
+        newVoting.endVotingTime = block.timestamp + DURATION;
     }
 
-    function viewVoting(uint votingId) external view returns(Voting memory) {
+    function viewCandidates(uint votingId) external view returns(address[] memory) {
         require(votingId < votings.length, "There is no such vote.");
-        return votings[votingId];
-    }
-
-    // TODO: Проверить количество средств у покупателя
-    function vote(uint votingId, uint voterId) external {
-        require(votingId < votings.length, "There is no such vote.");
-        require(participants[msg.sender] < 100000000000000000, "Insufficient funds.");
         Voting storage voting = votings[votingId];
-        require(voterId < voting.candidates.length, "Unknown candidate.");
+        return voting.candidates;
+    }
+
+    function viewAmountVotes(uint votingId, uint candidateId) external view returns(uint) {
+        require(votingId < votings.length, "There is no such vote.");
+        Voting storage voting = votings[votingId];
+        require(candidateId < voting.candidates.length, "Unknown candidate.");
+        return voting.amountVotes[candidateId];
+    }
+
+    function viewWhoVoted(uint votingId, address _whoVoted) external view returns(bool) {
+        require(votingId < votings.length, "There is no such vote.");
+        Voting storage voting = votings[votingId];
+        return voting.whoVoted[_whoVoted];
+    }
+
+
+    function vote(uint votingId, uint candidateId) external {
+        require(votingId < votings.length, "There is no such vote.");
+        require(participants[msg.sender] > COMISSION, "Insufficient funds.");
+        Voting storage voting = votings[votingId];
+        require(!voting.whoVoted[msg.sender], "You have already voted.");
+        require(candidateId < voting.candidates.length, "Unknown candidate.");
         require(!voting.ended, "Voting is over.");
 
-        bool voted = false;
-        for (uint i = 0; i < voting.whoVoted.length; i++) {
-            if (msg.sender == voting.whoVoted[i]) {
-                voted = true;
-            }
+        participants[msg.sender] -= COMISSION;                      
+        voting.amountMoney += COMISSION;
+
+        voting.amountVotes[candidateId] += 1;
+        voting.whoVoted[msg.sender] = true;
+
+        if (voting.amountVotes[candidateId] > voting.maxVotes) {
+            voting.maxVotes = voting.amountVotes[candidateId];
+            voting.winnerId = candidateId;
         }
-        require(!voted, "You have already voted.");
-
-        participants[msg.sender] -= 100000000000000000;                      
-        voting.amountMoney += 100000000000000000;
-
-        voting.amountVotes[voterId] += 1;
-        voting.whoVoted.push(msg.sender);
     }
 
     function finishVoting(uint votingId) external payable {
         require(votingId < votings.length, "There is no such vote.");
-
+        
         Voting storage voting = votings[votingId];
+        require(!voting.ended, "Voting is over.");
         require(block.timestamp > voting.endVotingTime, "Voting is not over yet");
         voting.ended = true;
-        // TODO: сделать подсчет победителя, при равных голосах
-        uint winner;
-        uint maxVotes = voting.amountVotes[0];
-
-        for (uint i = 1; i < voting.amountVotes.length; i++) {
-            if (voting.amountVotes[i] > maxVotes) {
-                winner = i;
-                maxVotes = voting.amountVotes[i];
-            }
-        }
         
-        comission += voting.amountMoney / 10;
+        transferFee += voting.amountMoney / 10;
         voting.amountMoney -= voting.amountMoney * 90 / 100;
-        payable(voting.candidates[winner]).transfer(voting.amountMoney);
+        payable(voting.candidates[voting.winnerId]).transfer(voting.amountMoney);
     }
 
     function withdraw(uint amount) external payable onlyOwner {
-        require(amount <= comission, "Not enough currency.");
-        comission -= amount; 
+        require(amount <= transferFee, "Not enough currency.");
+        transferFee -= amount; 
         payable(msg.sender).transfer(amount);
     }
 }
