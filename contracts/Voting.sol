@@ -2,12 +2,10 @@
 pragma solidity ^0.8.0;
 
 contract VotingContract {
-    address owner;
+    address public owner;
     uint transferFee;
     uint constant DURATION = 3 days; 
     uint constant COMISSION = 0.01 ether;
-
-    mapping(address=>uint) public participants;
 
     struct Voting {
         address[] candidates;
@@ -29,11 +27,6 @@ contract VotingContract {
     modifier onlyOwner() { 
         require(msg.sender == owner, "Sorry, u not owner."); 
         _;
-    }
-
-    function payForVoting() external payable {
-        require(msg.value > 0, "Pay must be greater than 0.");
-        participants[msg.sender] += msg.value;
     }
 
     function addVoting(address[] memory _candidates) external onlyOwner {
@@ -61,18 +54,15 @@ contract VotingContract {
         return voting.whoVoted[_whoVoted];
     }
 
-
-    function vote(uint votingId, uint candidateId) external {
+    function vote(uint votingId, uint candidateId) external payable {
+        require(msg.value == COMISSION, "You must pay exactly 0.01 ETH");
         require(votingId < votings.length, "There is no such vote.");
-        require(participants[msg.sender] > COMISSION, "Insufficient funds.");
         Voting storage voting = votings[votingId];
         require(!voting.whoVoted[msg.sender], "You have already voted.");
         require(candidateId < voting.candidates.length, "Unknown candidate.");
         require(!voting.ended, "Voting is over.");
 
-        participants[msg.sender] -= COMISSION;                      
         voting.amountMoney += COMISSION;
-
         voting.amountVotes[candidateId] += 1;
         voting.whoVoted[msg.sender] = true;
 
@@ -97,9 +87,10 @@ contract VotingContract {
 
     function withdraw(uint amount) external payable onlyOwner {
         require(amount <= transferFee, "Not enough currency.");
-        transferFee -= amount; 
+        transferFee -= amount;
         payable(msg.sender).transfer(amount);
     }
 }
 
 // ["0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db", "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB"]
+// 10000000000000000
